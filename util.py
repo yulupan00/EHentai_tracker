@@ -6,19 +6,15 @@ from tqdm import tqdm
 import random
 import time
 
-headers = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36'
-}
-
 api_url = "https://api.e-hentai.org/api.php"
+headers = {}
 
 def sleepSome():
     sleep_time = random.uniform(1, 10)
     time.sleep(sleep_time)
 
-def getRaw():
+def getRaw(page_range = 20):
     url_list = []
-    page_range = 20
     for i in tqdm(range(1, page_range + 1)):
         url = "https://e-hentai.org/?f_srdd=4&advsearch=1&range={}".format(i)
         response = requests.get(url, headers=headers)
@@ -41,7 +37,7 @@ def getRaw():
 
     df = pd.DataFrame(l, columns=["gid", "token"])
 
-    csv_filename = 'hentai_data_20.csv'
+    csv_filename = 'hentai_data_raw.csv'
     df.to_csv(csv_filename, index=False)
 
 def getDownloadCount(gid, token):
@@ -62,7 +58,7 @@ def getDownloadCount(gid, token):
     return total_downloads, valid
 
 def getDownload():
-    df = pd.read_csv('hentai_data_20.csv')
+    df = pd.read_csv('hentai_data_raw.csv')
     l = []
     for index, row in df.iterrows():
         gid = row['gid']
