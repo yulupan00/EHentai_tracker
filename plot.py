@@ -9,6 +9,7 @@ def basicPlot(df, save_name, show = False):
     fig = px.scatter(df, x="num_appearance", y="download_count", text="tag", color="tag")
     fig.update_traces(marker={'size': 15}, textposition='top center', hovertemplate="%{text}<extra></extra>")
     fig.update_layout(title_text="Popular {}".format(save_name))
+
     fig.write_image("images/{}.png".format(save_name))
     if show:
         fig.show()
@@ -17,7 +18,7 @@ def plotOverall():
     if not os.path.exists(save_folder):
         os.mkdir(save_folder)
 
-    df = pd.read_csv("back/hentai_data_tag.csv")
+    df = pd.read_csv("hentai_data_tag.csv")
 
     overall = df.head(20)
     basicPlot(overall, "overall")
@@ -31,4 +32,5 @@ def plotOverall():
 
 if __name__ == '__main__':
     plotOverall()
+   
     

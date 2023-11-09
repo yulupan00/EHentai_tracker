@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 
 import random
@@ -9,13 +10,17 @@ import time
 api_url = "https://api.e-hentai.org/api.php"
 headers = {}
 
+#Sleep between request websites to prevent getting blocked
 def sleepSome():
-    sleep_time = random.uniform(1, 10)
+    sleep_time = random.uniform(1, 5)
     time.sleep(sleep_time)
 
-def getRaw(page_range = 20):
+#Web scrap e-hentai.org and get the every gallery on the pages
+def getRaw(start_page = 1, page_range = 20, save = False):
+    if(start_page == 0):
+        start_page = 1
     url_list = []
-    for i in tqdm(range(1, page_range + 1)):
+    for i in tqdm(range(start_page, page_range + 1)):
         url = "https://e-hentai.org/?f_srdd=4&advsearch=1&range={}".format(i)
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
@@ -28,7 +33,6 @@ def getRaw(page_range = 20):
         else:
             print("fail")
         sleepSome()
-
     l = []
     for url in url_list:
         gid = url.split("/")[-3]
@@ -36,40 +40,11 @@ def getRaw(page_range = 20):
         l.append([gid, token])
 
     df = pd.DataFrame(l, columns=["gid", "token"])
+    if save:
+        df.to_csv('hentai_data.csv', index=False)
+    return df
 
-    csv_filename = 'hentai_data_raw.csv'
-    df.to_csv(csv_filename, index=False)
-
-def getDownloadCount(gid, token):
-    url = f"https://e-hentai.org/gallerytorrents.php?gid={gid}&t={token}"
-    response = requests.get(url, headers=headers)
-    total_downloads = 0
-    valid = True
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, 'html.parser')
-        td_elements = soup.find_all('td', style="width:100px; text-align:center")
-        if len(td_elements) == 0:
-            valid = False
-        for td in td_elements:
-            if "Downloads:" in td.text:
-                downloads = int(td.text.split(":")[1])
-                total_downloads += downloads
-        print("Total Downloads:", total_downloads)
-    return total_downloads, valid
-
-def getDownload():
-    df = pd.read_csv('hentai_data_raw.csv')
-    l = []
-    for index, row in df.iterrows():
-        gid = row['gid']
-        token = row['token']
-        download, valid = getDownloadCount(gid, token)
-        if valid:
-            l.append([gid, token, download])
-        sleepSome()
-    df_result = pd.DataFrame(l, columns=["gid", "token", "downloads"])
-    df_result.to_csv("hentai_data.csv", index=False)
-
+#Get the tag of one gid and token
 def getTags(gid, token):
     payload = {
         "method": "gdata",
@@ -84,26 +59,69 @@ def getTags(gid, token):
     if response.status_code == 200:
         json_data = response.json()
         tags = json_data["gmetadata"][0]["tags"]
-        print(tags)
-    return tags
+        title = json_data["gmetadata"][0]["title"]
+        tqdm.write(str(tags[:5]))
+    return tags, title
 
-def getAllTags():
-    df = pd.read_csv('hentai_data.csv')
-    l = []
+#Get every tag from a list of gid and token
+def getAllTags(df = None, save = False):
+    if df is None:
+        df = pd.read_csv('hentai_data.csv')
+    df["tag"] = np.nan
+    df["title"] = ""
 
-    for index, row in df.iterrows():
+    for index, row in tqdm(df.iterrows(), total=df.shape[0]):
         gid = row['gid']
         token = row['token']
-        download = row['downloads']
-        tag = getTags(gid, token)
-        l.append([gid, token, download, tag])
+        tag, title = getTags(gid, token)
+        if len(tag) > 1:
+            df.at[index,'tag'] = str(tag)
+        df.at[index,'title'] = title
         time.sleep(random.uniform(1, 10))
+    if save:
+        df.to_csv("hentai_data.csv", index=False)
+    df = df.dropna()
+    return df
 
-    df_result = pd.DataFrame(l, columns=["gid", "token", "downloads", "tag"])
-    df_result.to_csv("hentai_data_all.csv", index=False)
+#Get the total download count of a gid and token
+def getDownloadCount(gid, token):
+    url = "https://e-hentai.org/gallerytorrents.php?gid={}&t={}".format(gid, token)
+    response = requests.get(url, headers=headers)
+    total_downloads = 0
+    valid = True
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+        td_elements = soup.find_all('td', style="width:100px; text-align:center")
+        if len(td_elements) == 0:
+            valid = False
+        for td in td_elements:
+            if "Downloads:" in td.text:
+                downloads = int(td.text.split(":")[1])
+                total_downloads += downloads
+    return int(total_downloads), valid
 
-def getTagWithDownloads():
-    df = pd.read_csv("hentai_data_all.csv")
+#Get the download count from a list of gid and token
+def getDownload(df = None, save = True):
+    if df is None:
+        df = pd.read_csv('hentai_data.csv')
+    df["downloads"] = np.nan
+    for index, row in tqdm(df.iterrows(), total=df.shape[0]):
+        gid = row['gid']
+        token = row['token']
+        download, valid = getDownloadCount(gid, token)
+        if valid:
+            tqdm.write("{} Total Downloads: {}".format(row['title'][:20], download))
+            df.at[index,'downloads'] = int(download)
+        sleepSome()
+    df = df.dropna()
+    if save:
+        df.to_csv("hentai_data.csv", index=False)
+    return df
+
+#Associate each tag with its total download
+def getTagWithDownloads(df = None, save = True):
+    if df is None:
+        df = pd.read_csv("hentai_data.csv")
 
     tag_dict = {} #Format: tag -> download_count, category, num_appearance
 
@@ -123,5 +141,44 @@ def getTagWithDownloads():
     sorted_tags = dict(sorted(tag_dict.items(), key=lambda x: x[1], reverse=True))
 
     res_df = pd.DataFrame.from_dict(sorted_tags, orient='index', columns=["download_count", "category", "num_appearance"]).rename_axis("tag").reset_index()
-    res_df.to_csv("hentai_data_tag.csv", index=False)
+    if save:
+        res_df.to_csv("hentai_data_tag.csv", index=False)
+    return res_df
+
+#List the galleries with a certain tag
+def listGalleryWithTag(tag):
+    df = pd.read_csv("hentai_data.csv")
+    l = []
+    for index, row in df.iterrows():
+        if tag in row["tag"]:
+            print("Title: {}, GID: {}, Token: {}".format(row["title"], row["gid"], row["token"]))
+            l.append([row["gid"], row["token"]])
+    return l
+
+#Get one random image from the first page of a gallery
+def previewPage(gid, token):
+    url = "https://e-hentai.org/g/{}/{}".format(gid, token)
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+        image_links = soup.find_all('a')
+        images = []
+        for image in image_links:
+            href = image.get('href')
+            if href is not None and "{}-".format(gid) in href:
+                images.append(href)
+        if len(images) == 0:
+            print("No Image Available")
+        sleepSome()
+        select = random.choice(images)
+        response = requests.get(select, headers=headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        image_link = soup.find('img', {"id": 'img'})
+        image_url = image_link.get("src")
+        sleepSome()
+        response = requests.get(image_url, headers=headers)
+        image_data = response.content
+        local_file_path = "preview_image.jpg"
+        with open(local_file_path, 'wb') as file:
+            file.write(image_data)
 
