@@ -9,6 +9,7 @@ import time
 
 api_url = "https://api.e-hentai.org/api.php"
 headers = {}
+min_rateing = 3
 
 #Sleep between request websites to prevent getting blocked
 def sleepSome():
@@ -21,7 +22,7 @@ def getRaw(start_page = 1, page_range = 20, save = False):
         start_page = 1
     url_list = []
     for i in tqdm(range(start_page, page_range + 1)):
-        url = "https://e-hentai.org/?f_srdd=4&advsearch=1&range={}".format(i)
+        url = "https://e-hentai.org/?f_srdd={}&f_sto=on&advsearch=1&range={}".format(min_rateing,i)
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -60,8 +61,11 @@ def getTags(gid, token):
         json_data = response.json()
         tags = json_data["gmetadata"][0]["tags"]
         title = json_data["gmetadata"][0]["title"]
+        torrent_count = int(json_data["gmetadata"][0]["torrentcount"])
+        category = json_data["gmetadata"][0]["category"]
+        valid = len(tags) > 0 and torrent_count > 0
         tqdm.write(str(tags[:5]))
-    return tags, title
+    return tags, title, category, valid
 
 #Get every tag from a list of gid and token
 def getAllTags(df = None, save = False):
@@ -69,15 +73,17 @@ def getAllTags(df = None, save = False):
         df = pd.read_csv('hentai_data.csv')
     df["tag"] = np.nan
     df["title"] = ""
+    df["category"] = ""
 
     for index, row in tqdm(df.iterrows(), total=df.shape[0]):
         gid = row['gid']
         token = row['token']
-        tag, title = getTags(gid, token)
-        if len(tag) > 1:
+        tag, title, category, valid = getTags(gid, token)
+        if valid:
             df.at[index,'tag'] = str(tag)
-        df.at[index,'title'] = title
-        time.sleep(random.uniform(1, 10))
+            df.at[index,'title'] = title
+            df.at[index,'category'] = category
+        sleepSome()
     if save:
         df.to_csv("hentai_data.csv", index=False)
     df = df.dropna()
@@ -109,9 +115,8 @@ def getDownload(df = None, save = True):
         gid = row['gid']
         token = row['token']
         download, valid = getDownloadCount(gid, token)
-        if valid:
-            tqdm.write("{} Total Downloads: {}".format(row['title'][:20], download))
-            df.at[index,'downloads'] = int(download)
+        tqdm.write("{} Total Downloads: {}".format(row['title'][:20], download))
+        df.at[index,'downloads'] = int(download)
         sleepSome()
     df = df.dropna()
     if save:
