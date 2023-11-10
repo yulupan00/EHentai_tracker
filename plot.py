@@ -15,7 +15,7 @@ def basicPlot(df, save_name, show = False):
         fig.show()
 
 def plotCategory(df, show = False):
-    if df = None:
+    if df is None:
         df = pd.read_csv("hentai_data.csv")
     category_counts = df['category'].value_counts().reset_index()
     category_counts.columns = ['Category', 'Count']
@@ -46,5 +46,5 @@ def plotOverall():
 
 if __name__ == '__main__':
     plotOverall()   
-    plotCategory()
+   # plotCategory()
     

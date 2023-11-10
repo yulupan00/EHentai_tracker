@@ -1,3 +1,4 @@
+import os
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -9,7 +10,7 @@ import time
 
 api_url = "https://api.e-hentai.org/api.php"
 headers = {}
-min_rateing = 3
+min_rateing = 4
 
 #Sleep between request websites to prevent getting blocked
 def sleepSome():
@@ -21,8 +22,8 @@ def getRaw(start_page = 1, page_range = 20, save = False):
     if(start_page == 0):
         start_page = 1
     url_list = []
+    url = "https://e-hentai.org/?f_srdd={}&f_sto=on&advsearch=1&range={}".format(min_rateing,start_page)
     for i in tqdm(range(start_page, page_range + 1)):
-        url = "https://e-hentai.org/?f_srdd={}&f_sto=on&advsearch=1&range={}".format(min_rateing,i)
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -31,16 +32,17 @@ def getRaw(start_page = 1, page_range = 20, save = False):
                 if a_tag:
                     href = a_tag.get('href')
                     url_list.append(href)
+            url = soup.find('a', id='unext')['href']
         else:
             print("fail")
         sleepSome()
-    l = []
+    new_data = []
     for url in url_list:
         gid = url.split("/")[-3]
         token = url.split("/")[-2]
-        l.append([gid, token])
+        new_data.append([gid, token])
 
-    df = pd.DataFrame(l, columns=["gid", "token"])
+    df = pd.DataFrame(new_data, columns=["gid", "token"])
     if save:
         df.to_csv('hentai_data.csv', index=False)
     return df
@@ -58,13 +60,17 @@ def getTags(gid, token):
     response = requests.post(api_url, json=payload)
 
     if response.status_code == 200:
-        json_data = response.json()
-        tags = json_data["gmetadata"][0]["tags"]
-        title = json_data["gmetadata"][0]["title"]
-        torrent_count = int(json_data["gmetadata"][0]["torrentcount"])
-        category = json_data["gmetadata"][0]["category"]
-        valid = len(tags) > 0 and torrent_count > 0
-        tqdm.write(str(tags[:5]))
+        try:
+            json_data = response.json()
+            tags = json_data["gmetadata"][0]["tags"]
+            title = json_data["gmetadata"][0]["title"]
+            torrent_count = int(json_data["gmetadata"][0]["torrentcount"])
+            category = json_data["gmetadata"][0]["category"]
+            valid = len(tags) > 0 and torrent_count > 0
+            tqdm.write(str(tags[:5]))
+        except:
+            tqdm.write("Failure!")
+            return "","","", False
     return tags, title, category, valid
 
 #Get every tag from a list of gid and token
@@ -83,6 +89,8 @@ def getAllTags(df = None, save = False):
             df.at[index,'tag'] = str(tag)
             df.at[index,'title'] = title
             df.at[index,'category'] = category
+        else:
+            tqdm.write("Not good: {}".format(title))
         sleepSome()
     if save:
         df.to_csv("hentai_data.csv", index=False)
