@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import plotly.express as px
 
 save_folder = "images"
@@ -14,6 +15,7 @@ def basicPlot(df, save_name, show = False):
     if show:
         fig.show()
 
+#Plot the top category appearance in the data
 def plotCategory(df, show = False):
     if df is None:
         df = pd.read_csv("hentai_data.csv")
@@ -24,6 +26,20 @@ def plotCategory(df, show = False):
     fig.write_image("images/category_plot.png")
     if show:
         fig.show()
+
+#Plot the most downloaded gallery
+def plotTopGallery(df, show = False):
+    df_sorted = df.sort_values(by=['downloads'], ascending=False).head(20)
+    df_sorted['short_title'] = df_sorted['title'].str[:20]
+
+    sns.barplot(df_sorted, x="short_title", y="downloads")
+    plt.xlabel('Gallery Title')
+    plt.ylabel('Download Count')
+    plt.title('Top 20 Galleries by Download')
+    plt.xticks(rotation=45, ha='right')
+    plt.savefig("images/top_gallery.png")
+    if show:
+        plt.show()
 
 def plotOverall():
     if not os.path.exists(save_folder):
@@ -45,6 +61,8 @@ def plotOverall():
 
 
 if __name__ == '__main__':
-    plotOverall()   
-   # plotCategory()
+   plotOverall()   
+#    plotCategory()
+#    df = pd.read_csv("hentai_data.csv")
+#    plotTopGallery(df)
     

@@ -56,9 +56,7 @@ def getTags(gid, token):
         ],
         "namespace": 1
     }
-
     response = requests.post(api_url, json=payload)
-
     if response.status_code == 200:
         try:
             json_data = response.json()
@@ -191,7 +189,30 @@ def previewPage(gid, token):
         sleepSome()
         response = requests.get(image_url, headers=headers)
         image_data = response.content
-        local_file_path = "preview_image.jpg"
+        local_file_path = "{}_preview.jpg".format(gid)
         with open(local_file_path, 'wb') as file:
             file.write(image_data)
+
+#Get the thumbnail of a gallery
+def getThumbNail(gid, token):
+    payload = {
+        "method": "gdata",
+        "gidlist": [
+            [int(gid), token]
+        ],
+        "namespace": 1
+    }
+    response = requests.post(api_url, json=payload)
+    if response.status_code == 200:
+        try:
+            json_data = response.json()
+            thumb = json_data["gmetadata"][0]["thumb"]
+            sleepSome()
+            image = requests.get(thumb, headers=headers)
+            filename = "{}_thumbnail.jpg".format(gid)
+            with open(filename, 'wb') as f:
+                f.write(image.content)
+            print("Image saved as {}".format(filename))
+        except:
+            print("Failed!")
 

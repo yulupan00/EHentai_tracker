@@ -7,6 +7,13 @@ To prevent getting blocked by the website, change the headers in main.py. The sc
 
 Some data gathered from E-hentai.org. Only galleries with 4 stars ratings are included. Link: https://mega.nz/file/GB5jUI7R#RIEKgVwIFFpc5lXv8t_tx5SBDipYdy0qubXXXSeQH8k
 
+Some small functinalities in util:
+| Function | Description |
+| --- | --- |
+| listGalleryWithTag | List the galleries with a certain tag from the scraped data |
+| previewPage | Get one random image from the first page of a gallery |
+| getThumbNail | Get the thumbnail of a gallery |
+
 Example plots:
 
 ![Alt text](images/overall.png)
@@ -16,3 +23,5 @@ Example plots:
 ![Alt text](images/parody.png)
 
 ![Alt text](images/category_plot.png)
+
+![Alt text](images/top_gallery.png)
