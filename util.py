@@ -216,3 +216,10 @@ def getThumbNail(gid, token):
         except:
             print("Failed!")
 
+#Get the top download gallery with tag/catergory query
+def qualitySearch(queries):
+    df = pd.read_csv("hentai_data.csv")
+    for query in queries:
+        df = df[df[query].str.contains(queries[query], case=False, na=False)]
+    sorted_df = df.sort_values(by='downloads', ascending=False)
+    print(sorted_df.head())
